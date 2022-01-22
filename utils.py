@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=False):
+def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=0):
     """
     A custom function for finding eyeblinks in our data, where we know roughly the total number of blinks that should occur.
     
@@ -12,7 +12,7 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
         number_of_blinks: The number of blinks in the data
         duration_of_blink: The duration in seconds of a blink event
         sampling_frequency: The sampling frequency of the Muse headband. For Muse 2016, this is about 256 Hz
-        duration_before_peak: The proportion of `duration_of_blink` that lies before the eyeblink peak.
+        duration_before_peak: The interval between the start of a window and the eyeblink peak.
         jitter: Whether to randomize the value of `duration_before_peak` that gets used, between 0 and the value provided.
                 If you're just trying to find eyeblinks, set this to `False`.
                 If you're trying to test the robustness of your classifier against staggered windows, set it to True
@@ -30,16 +30,20 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
     # A list of all the channels we want to check
     channel_list = ["TP10", "TP9", "AF8", "AF7"]
     # Get the array from our dataframe
-    data_array = abs(dataframe[channel_list].values - dataframe[channel_list].values.mean())
+    data_array = abs(dataframe[channel_list].values - dataframe[channel_list].values.mean(axis=0))
     # Initialize our array to store our output
     blink_locations = []
     # Count through all the blinks we need to find
     for blink_index in range(number_of_blinks):
         # Find the number of points from the start of a blink to the peak, and from the peak to the end
-        duration_before_peak += 2*jitter*np.random.rand()*duration_of_blink
-        start_to_peak = int(duration_before_peak*duration_of_blink)
-        start_to_peak += int(jitter*start_to_peak*np.random.rand())
+        offset = jitter*(np.random.rand() - 0.5)*2
+        print(offset)
+        duration_before_peak += offset
+        start_to_peak = int(duration_before_peak*sampling_frequency)
         peak_to_end = int(duration_of_blink*sampling_frequency) - start_to_peak
+        print(start_to_peak, peak_to_end)
+        assert duration_before_peak > 0
+        assert start_to_peak > 0
         # Get the location of the next tallest peak, across all channels
         blink_location = int(max( np.argmax(data_array, axis=0) ))
         # If we can form a full window around that blink, add it to our data
@@ -50,7 +54,7 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
     # Return our result
     return np.array(blink_locations)
 
-def find_noneye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=False):
+def find_noneye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=0):
     """
     A custom function to find stretches of data that are not eyeblinks. It works by using `find_eye_events()` to obtain the eye event locations, then going through the data and extracting windows that have no overlap with eyeblinks.
 
@@ -97,7 +101,7 @@ def find_noneye_events(dataframe, number_of_blinks, duration_of_blink=1, samplin
     return np.array(nonblink_locations)
 
 
-def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=False):
+def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=0):
     X = []
     Y = []
     channel = "AF7"
@@ -119,9 +123,6 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
             eye_events = find_eye_events(dataframe, number_of_blinks, duration_of_blink, sampling_frequency, duration_before_peak, jitter)
             # For each eye event, plot, and get the feature vector and label
             for eye_event_idx in range(eye_events.shape[0]):
-                indices = np.arange(eye_events[eye_event_idx, 0], eye_events[eye_event_idx, 1])
-                # start_index = indices[0]
-                # end_index = indices[-1]
                 feature_vector = np.concatenate(
                     (dataframe["AF7"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],
                     dataframe["AF8"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],
@@ -132,6 +133,7 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
                 if dataset_type == "RightWinks": Y.append(0)
                 elif dataset_type == "LeftWinks": Y.append(1)
                 elif dataset_type == "NormalBlinks": Y.append(2)
+                indices = np.arange(eye_events[eye_event_idx, 0], eye_events[eye_event_idx, 1])
             #     plt.plot(indices, dataframe[channel].iloc[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]], c="r")
             # plt.xlabel("Timepoints")
             # plt.ylabel("Voltage (uV)")
