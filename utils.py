@@ -42,8 +42,8 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
         start_to_peak = int(duration_before_peak*sampling_frequency)
         peak_to_end = int(duration_of_blink*sampling_frequency) - start_to_peak
         print(start_to_peak, peak_to_end)
-        assert duration_before_peak > 0
-        assert start_to_peak > 0
+        # assert duration_before_peak > 0
+        # assert start_to_peak > 0
         # Get the location of the next tallest peak, across all channels
         blink_location = int(max( np.argmax(data_array, axis=0) ))
         # If we can form a full window around that blink, add it to our data
