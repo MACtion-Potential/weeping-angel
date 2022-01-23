@@ -37,13 +37,9 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
     for blink_index in range(number_of_blinks):
         # Find the number of points from the start of a blink to the peak, and from the peak to the end
         offset = jitter*(np.random.rand() - 0.5)*2
-        print(offset)
         duration_before_peak += offset
         start_to_peak = int(duration_before_peak*sampling_frequency)
         peak_to_end = int(duration_of_blink*sampling_frequency) - start_to_peak
-        print(start_to_peak, peak_to_end)
-        # assert duration_before_peak > 0
-        # assert start_to_peak > 0
         # Get the location of the next tallest peak, across all channels
         blink_location = int(max( np.argmax(data_array, axis=0) ))
         # If we can form a full window around that blink, add it to our data
@@ -104,7 +100,6 @@ def find_noneye_events(dataframe, number_of_blinks, duration_of_blink=1, samplin
 def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=0):
     X = []
     Y = []
-    channel = "AF7"
     for key in user_dataset:
         # Get the dataframe for this recording
         dataframe = user_dataset[key].to_data_frame()
@@ -113,7 +108,6 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
         blink_frequency = float(key.split("_")[3].split("s")[0])
         number_of_blinks = int(recording_duration/blink_frequency) - 2
         # Plot it so we can see how good the detection is
-        # plt.plot(dataframe["AF8"])
         dataset_type = key.split("_")[1]
 
         # For the datasets where we are interested in training on the eye events, go through all the eye events
@@ -123,44 +117,18 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
             eye_events = find_eye_events(dataframe, number_of_blinks, duration_of_blink, sampling_frequency, duration_before_peak, jitter)
             # For each eye event, plot, and get the feature vector and label
             for eye_event_idx in range(eye_events.shape[0]):
-                feature_vector = np.concatenate(
-                    (dataframe["AF7"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],
-                    dataframe["AF8"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],
-                    dataframe["TP9"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],
-                    dataframe["TP10"].values[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]],)
-                )
-                X.append(feature_vector)
+                X.append(dataframe[["AF7", "AF8", "TP9", "TP10"]].iloc[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]])
                 if dataset_type == "RightWinks": Y.append(0)
                 elif dataset_type == "LeftWinks": Y.append(1)
                 elif dataset_type == "NormalBlinks": Y.append(2)
                 indices = np.arange(eye_events[eye_event_idx, 0], eye_events[eye_event_idx, 1])
-            #     plt.plot(indices, dataframe[channel].iloc[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]], c="r")
-            # plt.xlabel("Timepoints")
-            # plt.ylabel("Voltage (uV)")
-            # plt.title(f"Detected Eye Events for {key}")
-            # plt.show()
         # Otherwise, if it's a dataset where we want to train on the non-blinks, go through all 
         elif dataset_type in ("FewBlinks"):
             # Get the eye events in the recording
             noneye_events = find_noneye_events(dataframe, number_of_blinks, duration_of_blink, sampling_frequency, duration_before_peak, jitter)
             # For each non eye event, plot, and get the feature vector and label
             for noneye_event_idx in range(noneye_events.shape[0]):
-                indices = np.arange(noneye_events[noneye_event_idx, 0], noneye_events[noneye_event_idx, 1])
-                # start_index = indices[0]
-                # end_index = indices[1]
-                feature_vector = np.concatenate(
-                    (dataframe["AF7"].values[indices],
-                    dataframe["AF8"].values[indices],
-                    dataframe["TP9"].values[indices],
-                    dataframe["TP10"].values[indices],)
-                )
-                X.append(feature_vector)
+                X.append(dataframe[["AF7", "AF8", "TP9", "TP10"]].iloc[noneye_events[noneye_event_idx, 0]:noneye_events[noneye_event_idx, 1]])
                 if dataset_type == "FewBlinks": Y.append(3)
-            #     plt.plot(indices, dataframe[channel].iloc[noneye_events[noneye_event_idx, 0]:noneye_events[noneye_event_idx, 1]], c="r")
-            # plt.xlabel("Timepoints")
-            # plt.ylabel("Voltage (uV)")
-            # plt.title(f"Detected Non-Eye Events for {key}")
-            # plt.show()
-    X = np.array(X)
     Y = np.array(Y)
     return X, Y
