@@ -121,7 +121,6 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
                 if dataset_type == "RightWinks": Y.append(0)
                 elif dataset_type == "LeftWinks": Y.append(1)
                 elif dataset_type == "NormalBlinks": Y.append(2)
-                indices = np.arange(eye_events[eye_event_idx, 0], eye_events[eye_event_idx, 1])
         # Otherwise, if it's a dataset where we want to train on the non-blinks, go through all 
         elif dataset_type in ("FewBlinks"):
             # Get the eye events in the recording
