@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import signal
 
 def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_frequency=256, duration_before_peak=0.25, jitter=0):
     """
@@ -41,12 +42,20 @@ def find_eye_events(dataframe, number_of_blinks, duration_of_blink=1, sampling_f
         start_to_peak = int(duration_before_peak*sampling_frequency)
         peak_to_end = int(duration_of_blink*sampling_frequency) - start_to_peak
         # Get the location of the next tallest peak, across all channels
-        blink_location = int(max( np.argmax(data_array, axis=0) ))
+        #print(data_array)
+        #print(type(data_array[0,0]))
+        blink_location = np.argmax(data_array)
+        #print(blink_location)
+        blink_location = np.unravel_index(blink_location, data_array.shape)[0]
+        #print(blink_location)
+        #print()
         # If we can form a full window around that blink, add it to our data
         if blink_location - start_to_peak >= 0 and blink_location + peak_to_end < data_array.shape[0]:
             blink_locations.append([blink_location - start_to_peak, blink_location + peak_to_end])
         # Set the data around that blink location to 0 so we don't count it again
         data_array[blink_location-start_to_peak:blink_location+peak_to_end,:] = 0
+    #     plt.plot(data_array[:,0])
+    # plt.show()
     # Return our result
     return np.array(blink_locations)
 
@@ -115,6 +124,8 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
         if dataset_type in ("LeftWinks", "RightWinks", "NormalBlinks"):
             # Get the eye events in the recording
             eye_events = find_eye_events(dataframe, number_of_blinks, duration_of_blink, sampling_frequency, duration_before_peak, jitter)
+            #print(f"{dataset_type}: {eye_events.shape}")
+            # if dataset_type == "NormalBlinks": assert False
             # For each eye event, plot, and get the feature vector and label
             for eye_event_idx in range(eye_events.shape[0]):
                 X.append(dataframe[["AF7", "AF8", "TP9", "TP10"]].iloc[eye_events[eye_event_idx, 0]:eye_events[eye_event_idx, 1]])
@@ -131,3 +142,64 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
                 if dataset_type == "FewBlinks": Y.append(3)
     Y = np.array(Y)
     return X, Y
+
+def compute_features(unfiltered_data_array, filter=None, pca=None, use_original=False):
+    """
+    Computes the features for the classifier.
+
+    Arguments:
+        data_array: A 256 data_array 4 array representing a sampling from all 4 channels across 256 time points.
+        filter: A filter to apply to the data, via scipy.signal.lfilter. Must be a (b, a) tuple. (see https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html#scipy.signal.butter)
+        pca: An instance of a principle component analysis object to apply to the data.
+        use_original: Whether to compute features for the original, unfiltered un-PCA'd data.
+
+    Returns:
+        A vector representing the feature vector for this window of data.
+    """
+    # Create the versions of the data
+    # Initialize the feature vector
+    data_array_versions = []
+    if use_original: data_array_versions.append(unfiltered_data_array)
+
+    feature_vector = []
+
+    if filter != None:
+        b, a = filter
+        filtered_data_array = signal.lfilter(b, a, unfiltered_data_array, axis=1)
+        data_array_versions.append(filtered_data_array)
+
+    if pca != None:
+        pca_data_array = pca.transform(np.array([unfiltered_data_array,]))
+        data_array_versions.append(pca_data_array)
+    
+    for data_array in data_array_versions:
+
+        for channel_1 in range(4):
+            feature_vector.append(data_array[:,channel_1].max())
+            feature_vector.append(data_array[:,channel_1].min())
+            feature_vector.append(data_array[:,channel_1].mean())
+            feature_vector.append(data_array[:,channel_1].std())
+            feature_vector.append(np.sqrt(np.mean(np.square(data_array[:,channel_1]))))
+            for channel_2 in range(channel_1+1, 4):
+                feature_vector.append(data_array[:,channel_1].max() - data_array[:,channel_2].max())
+                feature_vector.append(data_array[:,channel_1].min() - data_array[:,channel_2].min())
+                difference = data_array[channel_1] - data_array[channel_2]
+                feature_vector.append(difference.max())
+                feature_vector.append(difference.min())
+                feature_vector.append(np.sqrt(np.mean(np.square(difference), axis=0)))
+                feature_vector.append(difference.mean())
+                feature_vector.append(difference.std())
+                # feature_vector.append(
+                #     np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
+                # )
+    return feature_vector
+
+def create_butterworth_filter(cutoffs, fs, filter_type="lowpass", order=5):
+    assert (len(cutoffs) == 1 and filter_type in ("lowpass", "highpass")) or (len(cutoffs) == 2 and filter_type in ("bandpass", "highpass"))
+    nyq = 0.5 * fs
+    if len(cutoffs) == 1:
+        normal_cutoffs = cutoffs[0] / nyq
+    elif len(cutoffs) == 2:
+        normal_cutoffs = (cutoffs[0]/nyq, cutoffs[1]/nyq)
+    b, a = signal.butter(order, normal_cutoffs, btype=filter_type, analog=False)
+    return b, a
