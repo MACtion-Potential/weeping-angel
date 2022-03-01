@@ -36,24 +36,8 @@ def write_csv_files(username, typeOfData, interval):
     parent_dir = "/Users/adrianyu/Desktop/Maction Potential/" + username #customize
     fileName = username + "_" + typeOfData + "_" + interval + "_" + str(version) + ".csv"
     path = os.path.join(parent_dir, fileName)
-    fileObj = open(path, 'w')
 
-    # create the csv writer
-    writer = csv.writer(fileObj)
-    
-    # write a row to the csv file
-    headers = ["Time", "Date", "Event"] #customize based on file format
-    writer.writerow(headers)
-    
-    #reads in data from muse using bluetooth?
-    #not sure how the entries/ info are supposed to work, so I tried writing some random things into the file
-    numOfEntries = 10
-    for row in range (1, numOfEntries + 1):
-        rowToWrite = ["Time" + str(row), "Date" + str(row), "Event" + str(row)]
-        writer.writerow(rowToWrite)
-    
-    # close the file
-    fileObj.close()
+    os.system(f"conda activate maction_potential; muselsl record -d 60 -f '{path}'")
 
 #a function to check for the version of csv file
 #parameters: name, data type (ie left blink, right blink or normal blinks), interval of blinks
