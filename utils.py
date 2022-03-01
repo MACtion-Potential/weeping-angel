@@ -133,7 +133,7 @@ def prepare_data(user_dataset, duration_of_blink=1, sampling_frequency=256, dura
                 elif dataset_type == "LeftWinks": Y.append(1)
                 elif dataset_type == "NormalBlinks": Y.append(2)
         # Otherwise, if it's a dataset where we want to train on the non-blinks, go through all 
-        elif dataset_type in ("FewBlinks"):
+        elif dataset_type in ("FewBlinks", "NoBlinks"):
             # Get the eye events in the recording
             noneye_events = find_noneye_events(dataframe, number_of_blinks, duration_of_blink, sampling_frequency, duration_before_peak, jitter)
             # For each non eye event, plot, and get the feature vector and label
@@ -189,9 +189,9 @@ def compute_features(unfiltered_data_array, filter=None, pca=None, use_original=
                 feature_vector.append(np.sqrt(np.mean(np.square(difference), axis=0)))
                 feature_vector.append(difference.mean())
                 feature_vector.append(difference.std())
-                # feature_vector.append(
-                #     np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
-                # )
+            #     feature_vector.append(
+            #     np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
+            #     )
     return feature_vector
 
 def create_butterworth_filter(cutoffs, fs, filter_type="lowpass", order=5):
