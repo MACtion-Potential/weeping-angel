@@ -151,7 +151,7 @@ def compute_features(unfiltered_data_array, filter=None, pca=None, use_original=
         data_array: A 256 data_array 4 array representing a sampling from all 4 channels across 256 time points.
         filter: A filter to apply to the data, via scipy.signal.lfilter. Must be a (b, a) tuple. (see https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html#scipy.signal.butter)
         pca: An instance of a principle component analysis object to apply to the data.
-        use_original: Whether to compute features for the original, unfiltered un-PCA'd data.
+        use_original: Whether to compute features for the original, unfiltered, un-PCA'd data.
 
     Returns:
         A vector representing the feature vector for this window of data.
@@ -175,23 +175,29 @@ def compute_features(unfiltered_data_array, filter=None, pca=None, use_original=
     for data_array in data_array_versions:
 
         for channel_1 in range(4):
-            feature_vector.append(data_array[:,channel_1].max())
-            feature_vector.append(data_array[:,channel_1].min())
-            feature_vector.append(data_array[:,channel_1].mean())
+            mean_1 = data_array[:,channel_1].mean()
+            channel_1_adjusted = data_array[:,channel_1] - mean_1
+            feature_vector.append((channel_1_adjusted).max())
+            feature_vector.append((channel_1_adjusted).min())
+            feature_vector.append((channel_1_adjusted[1:] - channel_1_adjusted[:-1]).mean())
             feature_vector.append(data_array[:,channel_1].std())
             feature_vector.append(np.sqrt(np.mean(np.square(data_array[:,channel_1]))))
             for channel_2 in range(channel_1+1, 4):
-                feature_vector.append(data_array[:,channel_1].max() - data_array[:,channel_2].max())
+                mean_2 = data_array[:,channel_2].mean()
+                mean_2 = 0
+                channel_2_adjusted = data_array[:,channel_2] - mean_2
+                feature_vector.append(channel_1_adjusted.max() - channel_2_adjusted.max())
                 feature_vector.append(data_array[:,channel_1].min() - data_array[:,channel_2].min())
-                difference = data_array[channel_1] - data_array[channel_2]
+                difference = channel_1_adjusted - channel_2_adjusted
                 feature_vector.append(difference.max())
                 feature_vector.append(difference.min())
                 feature_vector.append(np.sqrt(np.mean(np.square(difference), axis=0)))
                 feature_vector.append(difference.mean())
-                feature_vector.append(difference.std())
-            #     feature_vector.append(
-            #     np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
-            #     )
+                feature_vector.append((channel_1_adjusted[1:] - channel_2_adjusted[:-1]).mean())
+                # feature_vector.append(whatever you want to add)
+                # feature_vector.append(
+                # np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
+                # )
     return feature_vector
 
 def create_butterworth_filter(cutoffs, fs, filter_type="lowpass", order=5):
