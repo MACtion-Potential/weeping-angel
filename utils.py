@@ -177,26 +177,27 @@ def compute_features(unfiltered_data_array, filter=None, pca=None, use_original=
         for channel_1 in range(4):
             mean_1 = data_array[:,channel_1].mean()
             channel_1_adjusted = data_array[:,channel_1] - mean_1
-            feature_vector.append((channel_1_adjusted).max())
-            feature_vector.append((channel_1_adjusted).min())
-            feature_vector.append((channel_1_adjusted[1:] - channel_1_adjusted[:-1]).mean())
-            feature_vector.append(data_array[:,channel_1].std())
-            feature_vector.append(np.sqrt(np.mean(np.square(data_array[:,channel_1]))))
+            # feature_vector.append((channel_1_adjusted).max())
+            # feature_vector.append((channel_1_adjusted).min())
+            # feature_vector.append((channel_1_adjusted[1:] - channel_1_adjusted[:-1]).mean())
+            # feature_vector.append(data_array[:,channel_1].std())
+            # feature_vector.append(np.sqrt(np.mean(np.square(data_array[:,channel_1]))))
             for channel_2 in range(channel_1+1, 4):
                 mean_2 = data_array[:,channel_2].mean()
-                mean_2 = 0
-                channel_2_adjusted = data_array[:,channel_2] - mean_2
-                feature_vector.append(channel_1_adjusted.max() - channel_2_adjusted.max())
-                feature_vector.append(data_array[:,channel_1].min() - data_array[:,channel_2].min())
-                difference = channel_1_adjusted - channel_2_adjusted
-                feature_vector.append(difference.max())
-                feature_vector.append(difference.min())
-                feature_vector.append(np.sqrt(np.mean(np.square(difference), axis=0)))
-                feature_vector.append(difference.mean())
-                feature_vector.append((channel_1_adjusted[1:] - channel_2_adjusted[:-1]).mean())
+                # mean_2 = 0
+                # channel_2_adjusted = data_array[:,channel_2] - mean_2
+                # feature_vector.append(channel_1_adjusted.max() - channel_2_adjusted.max())
+                # feature_vector.append(data_array[:,channel_1].min() - data_array[:,channel_2].min())
+                # difference = channel_1_adjusted - channel_2_adjusted
+                # feature_vector.append(difference.max())
+                # feature_vector.append(difference.min())
+                # feature_vector.append(np.sqrt(np.mean(np.square(difference), axis=0)))
+                # feature_vector.append(difference.mean())
+                # feature_vector.append((channel_1_adjusted[1:] - channel_2_adjusted[:-1]).max())
                 # feature_vector.append(whatever you want to add)
                 # feature_vector.append(
                 # np.cov(data_array[:,channel_1], data_array[:,channel_2])[0,1]
+                feature_vector.append((data_array[:, channel_1] - data_array[:, channel_2]).max())
                 # )
     return feature_vector
 
